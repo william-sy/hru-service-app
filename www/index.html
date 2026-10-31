@@ -546,7 +546,9 @@ async function readPaired() {
   b.pop();                                   // trailing checksum
   const slots = [];
   for (let u = 9, n = 1; u < 128 && b[u + 1] !== undefined; u += 6, n++) {
-    const addr = '0x' + b.slice(u + 1, u + 5).join('');
+    const bytes = b.slice(u + 1, u + 5);
+    if (bytes.length < 4 || !bytes.every(t => /^[0-9A-Fa-f]{2}$/.test(t))) throw new Error('Unexpected reply from the unit');   // never render raw reply text
+    const addr = '0x' + bytes.join('').toUpperCase();
     slots.push({ n, addr, q: parseInt(b[u + 5], 16), empty: addr === '0x00000000' });
   }
   return { wifi: parseInt(b[8], 16), slots, raw: res.message };
@@ -632,9 +634,9 @@ function renderDevices(openAddr, auto = true) {
     <div class="card"><div class="hint">${BASE ? 'Slots are read from the unit when you open this page.' : 'Connect to the unit to see which slot each sensor is in.'}</div><button id="dvConnect" class="big">${BASE ? 'Refresh slots from the unit' : 'Connect to the unit'}</button></div>`;
   const st = t => { $('dvSt').textContent = t; };
   const again = a => renderDevices(a, false);
-  const bindEdit = a => { const box = $('devices').querySelector(`[data-ed="${a}"]`); if (box) labelEditor(box, a, libGet()[a] || {}, () => again()); };
+  const bindEdit = a => { const box = $('devices').querySelector(`[data-ed="${CSS.escape(a)}"]`); if (box) labelEditor(box, a, libGet()[a] || {}, () => again()); };
   $('devices').querySelectorAll('[data-lbl]').forEach(b => b.onclick = () => {
-    const box = $('devices').querySelector(`[data-ed="${b.dataset.lbl}"]`);
+    const box = $('devices').querySelector(`[data-ed="${CSS.escape(b.dataset.lbl)}"]`);
     if (!box.hidden) { box.hidden = true; return; }
     bindEdit(b.dataset.lbl);
   });
@@ -737,13 +739,13 @@ function renderPaired() {
       rememberSlots(r);
       const row = x => {
         const l = lib[x.addr];
-        return `<div class="dev"><div class="who">Slot ${x.n} · ${devName(l) ? `<strong>${esc(devName(l))}</strong>` : '<span class="hint">not labelled</span>'}<br><span class="hint">${l && l.name && l.type ? esc(l.type) + ' · ' : ''}${x.addr} · signal ${x.q}</span></div>
-          <button class="s" data-lbl="${x.addr}">${devName(l) ? 'Edit' : 'Label'}</button></div><div data-ed="${x.addr}" hidden></div>`;
+        return `<div class="dev"><div class="who">Slot ${x.n} · ${devName(l) ? `<strong>${esc(devName(l))}</strong>` : '<span class="hint">not labelled</span>'}<br><span class="hint">${l && l.name && l.type ? esc(l.type) + ' · ' : ''}${esc(x.addr)} · signal ${esc(x.q)}</span></div>
+          <button class="s" data-lbl="${esc(x.addr)}">${devName(l) ? 'Edit' : 'Label'}</button></div><div data-ed="${esc(x.addr)}" hidden></div>`;
       };
       $('pairedOut').innerHTML = (used.length ? used.map(row).join('') : '<div class="hint">No paired devices.</div>') +
         `<p class="hint">Labels are kept on this phone only and follow the device, not the slot. Add sensors by scanning their sticker under Sensors. Unit Wi-Fi quality ${r.wifi}</p>`;
       $('pairedOut').querySelectorAll('[data-lbl]').forEach(b => b.onclick = () => {
-        const box = $('pairedOut').querySelector(`[data-ed="${b.dataset.lbl}"]`);
+        const box = $('pairedOut').querySelector(`[data-ed="${CSS.escape(b.dataset.lbl)}"]`);
         if (!box.hidden) { box.hidden = true; return; }
         labelEditor(box, b.dataset.lbl, lib[b.dataset.lbl] || {}, () => $('readPaired').click());
       });

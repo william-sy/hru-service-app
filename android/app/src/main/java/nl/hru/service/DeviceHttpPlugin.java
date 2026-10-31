@@ -195,6 +195,8 @@ public class DeviceHttpPlugin extends Plugin {
             File tmp = null;
             try {
                 String name = call.getString("name");
+                // Flat file names only: the name can come from a remote manifest, so never let it leave the firmware folder.
+                if (name == null || !name.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,79}")) { call.reject("Invalid file name"); return; }
                 String want = call.getString("sha256");
                 URL du = new URL(call.getString("url"));
                 Network inet = internetNetwork();

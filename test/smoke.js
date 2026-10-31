@@ -30,7 +30,7 @@ function serve() {
 }
 
 // Opens the app. `baseVersion` is what the mocked unit reports as its base firmware byte (software version).
-async function open(port, { seed = {}, baseVersion = '08', serial = 'WT0000000001' } = {}) {
+async function open(port, { seed = {}, baseVersion = '08', serial = 'WT0000000001', paired = PAIRED } = {}) {
   const errors = [];
   const vc = new VirtualConsole();
   vc.on('jsdomError', e => errors.push(e.message));
@@ -50,7 +50,7 @@ async function open(port, { seed = {}, baseVersion = '08', serial = 'WT000000000
             request: async a => {
               if (a.url.endsWith('/identification')) return { status: 200, body: JSON.stringify({ serialNumber: serial }) };
               if (a.url.endsWith('/version')) return { status: 200, body: '{"productVersion":21,"softwareVersion":2}' };
-              if (a.body && a.body.includes('8A 8A A4')) return { status: 200, body: JSON.stringify({ message: PAIRED }) };
+              if (a.body && a.body.includes('8A 8A A4')) return { status: 200, body: JSON.stringify({ message: paired }) };
               return { status: 200, body: JSON.stringify({ message: `82 8A 90 E0 04 00 28 00 01 01 ${baseVersion} 01 01 00 01 99` }) };
             },
           },
@@ -128,6 +128,26 @@ async function main() {
       const btn = [...d.querySelectorAll('#firmware button[data-flash]')].find(b => b.textContent.replace(' on the unit', '').trim().endsWith(' 21.2'));
       check('firmware for another model is blocked by article number', btn && btn.disabled);
     } finally { fs.writeFileSync(FIXTURE, orig); fs.unlinkSync(FIXTURE + '.tmp'); }
+  }
+
+  // 7. hostile data is shown as text, never as markup
+  {
+    // a rogue "unit" whose paired-devices reply carries markup where an RF address should be
+    const evil = PAIRED.replace('00 00 96 EB 6B 01', '00 <img src=x onerror=window.__pwned=1> 6B 01');
+    const { w, d } = await open(port, { seed: { myUnit: oldUnit }, paired: evil });
+    d.querySelector('.drawer button[data-t=paired]').click();
+    await wait(900);
+    check('paired reply with markup is refused, nothing injected', !d.querySelector('#paired img') && !w.__pwned && /Read failed/.test(text(d.getElementById('pairedOut'))), text(d.getElementById('pairedOut')));
+  }
+  {
+    // manifest with an HTML model name (shown via the unit's article number) and a version that is a path
+    const units = { current: 'a', list: [{ key: 'a', name: '', article: '03-00999', serial: 'WT0000000001', ssid: '', password: '', added: '2026-01-01T00:00:00Z', data: { ...oldUnit } }] };
+    const { w, d } = await open(port, { seed: { units } });
+    d.querySelector('.drawer button[data-t=firmware]').click();
+    await wait(600);
+    const fw = d.getElementById('firmware');
+    check('model name with markup is shown as text', !fw.querySelector('img') && !w.__pwned && fw.textContent.includes('<img src=x'), fw.querySelector('img') ? 'img element injected' : 'text missing');
+    check('firmware version that is a path is dropped', !fw.textContent.includes('evil'));
   }
 
   server.close();

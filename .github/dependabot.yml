@@ -1,0 +1,14 @@
+# Keeps the pinned workflow actions and the npm dependencies current (opens pull requests, never pushes).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      npm-dependencies:
+        patterns: ['*']

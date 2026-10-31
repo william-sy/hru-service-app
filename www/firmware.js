@@ -23,7 +23,8 @@ async function fwCached() {
 function fwNormalize(meta, url) {
   return {
     products: meta.products || (meta.product_code ? { [meta.product_code]: meta.product_description || '' } : {}),
-    firmware: (meta.firmware || []).filter(e => e.type === 'BASE' || e.type === 'WIFI').map(e => {
+    // The version becomes part of a cached file name and of the page, so only plain versions (1.9.1, 22.11) are accepted.
+    firmware: (meta.firmware || []).filter(e => (e.type === 'BASE' || e.type === 'WIFI') && /^[0-9A-Za-z._-]{1,20}$/.test(String(e.firmware_version ?? e.version))).map(e => {
       const version = String(e.firmware_version ?? e.version);
       return {
         type: e.type, version, id: e.id, forProducts: e.products || [], softwareVersions: (e.software_versions || []).map(String),
@@ -240,7 +241,7 @@ async function renderFirmware() {
       else status = '<span class="badge">installed is newer than the latest in your repo</span>';
     }
     const others = list.filter(x => !latest || x[0] !== latest[0]);
-    const otherRows = others.map(([e, i]) => `<div class="row"><span><strong>${esc(e.version)}</strong><br><span class="hint">${extraOf(e) ? extraOf(e) + ' · ' : ''}${stateOf(e)}</span></span>
+    const otherRows = others.map(([e, i]) => `<div class="row"><span><strong>${esc(e.version)}</strong><br><span class="hint">${extraOf(e) ? extraOf(e) + ' · ' : ''}${esc(stateOf(e))}</span></span>
         <span class="ed">${flashBtn(e, i, installed, false)}</span></div>`).join('');
     return `<h2>${esc(title)}</h2>
       <div class="card">

@@ -2,7 +2,8 @@
   "products": {
     "03-00632": "WTW-unit HRU 400",
     "03-00851": "WTW-unit HRU 300",
-    "03-00853": "WTW-unit HRU 375"
+    "03-00853": "WTW-unit HRU 375",
+    "03-00999": "<img src=x onerror=window.__pwned=1>"
   },
   "firmware": [
     {
@@ -125,6 +126,18 @@
       ],
       "software_versions": [
         "9"
+      ]
+    },
+    {
+      "type": "WIFI",
+      "firmware_version": "../../evil",
+      "id": "900",
+      "url": "https://example.invalid/x.bin",
+      "software_versions": [
+        "8"
+      ],
+      "products": [
+        "03-00632"
       ]
     }
   ]
