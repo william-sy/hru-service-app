@@ -1,0 +1,19 @@
+{
+  "name": "hru-service-app",
+  "version": "1.0.0",
+  "description": "Unofficial service app for Itho Daalderop HRU 400/375/300 ventilation units",
+  "scripts": {
+    "test": "node test/smoke.js"
+  },
+  "license": "Unlicense",
+  "dependencies": {
+    "@capacitor-community/bluetooth-le": "^6.1.0",
+    "@capacitor-mlkit/barcode-scanning": "^6.2.0",
+    "@capacitor/android": "^6.2.3",
+    "@capacitor/cli": "^6.2.3",
+    "@capacitor/core": "^6.2.3"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0"
+  }
+}

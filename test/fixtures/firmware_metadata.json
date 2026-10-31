@@ -1,0 +1,144 @@
+{
+  "products": {
+    "03-00632": "WTW-unit HRU 400",
+    "03-00851": "WTW-unit HRU 300",
+    "03-00853": "WTW-unit HRU 375",
+    "03-00999": "<img src=x onerror=window.__pwned=1>"
+  },
+  "firmware": [
+    {
+      "type": "WIFI",
+      "firmware_version": "13.1",
+      "id": "13",
+      "url": "https://assets.eu.bettyblocks.com/eu-central-1-fed492c8696c42e79591299f88fdd19c/676ca0a6db1947a9a66257f57fc91b73/13/RF-Module.bin.enc",
+      "url_eeprom": "",
+      "has_eeprom": false,
+      "apply_factory_reset_after_update": false,
+      "wait_minutes_after_update": null,
+      "hash_text": "",
+      "appliance_address": "8A",
+      "description": "",
+      "file": "wifi/hru400_WIFI_13.1.bin",
+      "sha256": "3f9e95682dba4cf2f5e611f3a0a6ebf89e6390bfa570c75c36abccb429911bfb",
+      "products": [
+        "03-00632",
+        "03-00851",
+        "03-00853"
+      ],
+      "software_versions": [
+        "6"
+      ]
+    },
+    {
+      "type": "WIFI",
+      "firmware_version": "21.2",
+      "id": "31",
+      "url": "https://assets.eu.bettyblocks.com/eu-central-1-fed492c8696c42e79591299f88fdd19c/676ca0a6db1947a9a66257f57fc91b73/31/RF-Module.bin.enc",
+      "url_eeprom": "",
+      "has_eeprom": false,
+      "apply_factory_reset_after_update": false,
+      "wait_minutes_after_update": 0,
+      "hash_text": "",
+      "appliance_address": "8A",
+      "description": "",
+      "file": "wifi/hru400_WIFI_21.2.bin",
+      "sha256": "ab7cdbc4ca51f52aea8acdae4cae7b0e36d40daec8ba6837c25e42528c636586",
+      "products": [
+        "03-00632",
+        "03-00851",
+        "03-00853"
+      ],
+      "software_versions": [
+        "6",
+        "7",
+        "8",
+        "9"
+      ]
+    },
+    {
+      "type": "BASE",
+      "firmware_version": "8.1",
+      "id": "32",
+      "url": "https://assets.eu.bettyblocks.com/eu-central-1-fed492c8696c42e79591299f88fdd19c/676ca0a6db1947a9a66257f57fc91b73/32/PD-68HRU450-v1_8_1-BL.hex.enc",
+      "url_eeprom": "",
+      "has_eeprom": false,
+      "apply_factory_reset_after_update": true,
+      "wait_minutes_after_update": 0,
+      "hash_text": "b17a4f803f4b60bd98bdd827258883b89e389b208539e02947019c9ae662c525",
+      "appliance_address": "82",
+      "description": "VDA & WT4 software v1.8.1 (MZR compatible update)",
+      "file": "base/hru400_BASE_8.1.bin",
+      "sha256": "9e36aafc6e62529a1251d50407ed8c4532739c760eb67b3ae9855af20de6d108",
+      "products": [
+        "03-00632",
+        "03-00851",
+        "03-00853"
+      ],
+      "software_versions": [
+        "6",
+        "7",
+        "8",
+        "9"
+      ]
+    },
+    {
+      "type": "BASE",
+      "firmware_version": "1.9.1",
+      "id": "36",
+      "url": "https://assets.eu.bettyblocks.com/eu-central-1-fed492c8696c42e79591299f88fdd19c/676ca0a6db1947a9a66257f57fc91b73/36/PD-68HRU450-v1_9_1-BL.hex.enc",
+      "url_eeprom": "",
+      "has_eeprom": false,
+      "apply_factory_reset_after_update": true,
+      "wait_minutes_after_update": 0,
+      "hash_text": "a043c4a452e00f0dd82197d437b86257a2ac249ab6eb14f79d812a2d15d62af6",
+      "appliance_address": "82",
+      "description": "HRU VDA & WT4 software v1.9.1 (o.a. VDA RV sensor fix)",
+      "file": "base/hru400_BASE_1.9.1.bin",
+      "sha256": "133b0ebd572ed452482e5361d38935862efb2aada05ff3daff03e14c410ebbc2",
+      "products": [
+        "03-00632",
+        "03-00851",
+        "03-00853"
+      ],
+      "software_versions": [
+        "8",
+        "9"
+      ]
+    },
+    {
+      "type": "WIFI",
+      "firmware_version": "22.11",
+      "id": "35",
+      "url": "https://assets.eu.bettyblocks.com/eu-central-1-fed492c8696c42e79591299f88fdd19c/676ca0a6db1947a9a66257f57fc91b73/35/RF-Module.bin.enc",
+      "url_eeprom": "",
+      "has_eeprom": false,
+      "apply_factory_reset_after_update": false,
+      "wait_minutes_after_update": 0,
+      "hash_text": "",
+      "appliance_address": "8A",
+      "description": "",
+      "file": "wifi/hru400_WIFI_22.11.bin",
+      "sha256": "2727894f8a5e4e6b107b7869472f3bee3825372337760b1edbd60ea8332e13e7",
+      "products": [
+        "03-00632",
+        "03-00851",
+        "03-00853"
+      ],
+      "software_versions": [
+        "9"
+      ]
+    },
+    {
+      "type": "WIFI",
+      "firmware_version": "../../evil",
+      "id": "900",
+      "url": "https://example.invalid/x.bin",
+      "software_versions": [
+        "8"
+      ],
+      "products": [
+        "03-00632"
+      ]
+    }
+  ]
+}
