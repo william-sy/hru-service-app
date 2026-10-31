@@ -1,0 +1,121 @@
+name: build
+
+# Every push and pull request: run the smoke test and build a debug APK (kept as a workflow artifact).
+# Every tag like v1.2.0: also build a signed release APK and publish it as a GitHub Release.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  debug-apk:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+      - run: ./scripts/prepare.sh
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug -PappVersionCode=${{ github.run_number }} -PappVersionName=0.0.${{ github.run_number }}-debug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hru-service-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    # Only for version tags, only after the tests passed.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # create the release and attach the APK
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - run: npm ci
+
+      - name: Check the signing key is configured
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::Secret ANDROID_KEYSTORE_BASE64 is not set. A release needs a stable signing key, otherwise phones refuse to update the app in place. See README, section Releasing."
+            exit 1
+          fi
+
+      - run: ./scripts/prepare.sh
+
+      - name: Build signed release APK
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          TAG: ${{ github.ref_name }}
+        working-directory: android
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          export KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+          ./gradlew assembleRelease -PappVersionCode=${{ github.run_number }} -PappVersionName="${TAG#v}"
+          rm -f "$RUNNER_TEMP/release.jks"
+
+      - name: Name the APK and write its checksum
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          mkdir dist
+          cp android/app/build/outputs/apk/release/app-release.apk "dist/hru-service-${TAG}.apk"
+          (cd dist && sha256sum "hru-service-${TAG}.apk" > "hru-service-${TAG}.apk.sha256" && cat "hru-service-${TAG}.apk.sha256")
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          cat > notes.md <<'NOTES'
+          **Unofficial. Use at your own risk.** This app is not made, approved or supported by Itho Daalderop.
+          Installing firmware on a unit can leave it unusable. Read the README before you flash anything.
+
+          Install: download the `.apk` below on your phone and open it (Android asks you to allow installs from your browser or file manager). Verify it with the `.sha256` file if you like.
+          NOTES
+          gh release create "$TAG" dist/* --title "$TAG" --notes-file notes.md --generate-notes --verify-tag

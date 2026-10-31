@@ -1,0 +1,888 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>HRU 400 service</title>
+<style>
+  :root { --bg:#f6f7f9; --fg:#1b1f24; --mut:#667; --card:#fff; --acc:#0b6bcb; --bd:#d8dce2; --ok:#1e8e3e; --bad:#c0392b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171a; --fg:#e8eaed; --mut:#99a; --card:#1d2227; --acc:#5aa9ff; --bd:#333b44; --ok:#5bd17f; --bad:#ff7b6b; } }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:0; background:var(--bg); color:var(--fg); font:15px/1.45 system-ui,sans-serif; }
+  main { max-width:760px; margin:0 auto; }
+  #gate { max-width:520px; margin:0 auto; }
+  h1 { font-size:1.3rem; margin:0 0 12px; }
+  h2 { font-size:1rem; margin:20px 0 6px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; }
+  .bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:12px; }
+  button, select, input { font:inherit; padding:7px 12px; border-radius:7px; border:1px solid var(--bd); background:var(--card); color:var(--fg); }
+  button { cursor:pointer; border-color:var(--acc); color:var(--acc); }
+  button.p { background:var(--acc); color:#fff; }
+  button:disabled { opacity:.5; cursor:default; }
+  .row { display:grid; grid-template-columns:1fr auto; gap:4px 12px; align-items:center; padding:9px 12px; background:var(--card); border:1px solid var(--bd); border-top:0; }
+  .grp > .row:first-of-type { border-top:1px solid var(--bd); border-radius:8px 8px 0 0; }
+  .grp > .row:last-child { border-radius:0 0 8px 8px; }
+  .val { font-variant-numeric:tabular-nums; font-weight:600; text-align:right; }
+  .hint { color:var(--mut); font-size:.85em; grid-column:1/-1; }
+  .ed { display:flex; gap:6px; align-items:center; }
+  .ed input { width:96px; text-align:right; }
+  #status { color:var(--mut); }
+  #status.ok { color:var(--ok); } #status.bad { color:var(--bad); }
+  button, select, input { min-height:44px; }
+  input[type=checkbox] { min-height:0; width:20px; height:20px; vertical-align:middle; }
+  #gate { padding:max(16px, env(safe-area-inset-top)) 16px 24px; }
+  .appbar { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:10px; padding:max(8px, env(safe-area-inset-top)) 12px 8px; background:var(--card); border-bottom:1px solid var(--bd); }
+  .appbar #homeBtn { padding:0; width:44px; font-size:1.3rem; line-height:1; border-color:var(--bd); color:var(--fg); }
+  .appbar #menuBtn { padding:0; width:44px; font-size:1.4rem; line-height:1; border-color:var(--bd); color:var(--fg); }
+  #pageTitle { font-weight:600; font-size:1.1rem; flex:1; }
+  #status2 { padding:6px 16px; font-size:.85em; } #status2:empty { display:none; }
+  #app main { padding:12px 16px calc(32px + env(safe-area-inset-bottom)); }
+  #scrim { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:9; }
+  .drawer { position:fixed; top:0; bottom:0; left:0; width:min(80vw,300px); z-index:10; background:var(--card); border-right:1px solid var(--bd); overflow-y:auto; transform:translateX(-102%); transition:transform .2s; padding:max(12px, env(safe-area-inset-top)) 0 24px; }
+  .drawer.open { transform:none; }
+  .drawer .dh { padding:8px 20px 14px; font-weight:700; font-size:1.1rem; } .drawer .dh small { display:block; font-weight:400; color:var(--mut); font-size:.8rem; margin-top:2px; }
+  .drawer button[data-t] { display:block; width:100%; text-align:left; border:0; border-left:4px solid transparent; border-radius:0; background:none; color:var(--fg); padding:12px 20px; font-size:1rem; }
+  .drawer button[data-t].on { border-left-color:var(--acc); color:var(--acc); font-weight:600; background:rgba(11,107,203,.08); }
+  .drawer details { margin:12px 20px 0; color:var(--mut); } .drawer details label { display:block; margin:10px 0 4px; }
+  .badge { display:inline-block; padding:1px 8px; border-radius:10px; font-size:.78em; font-weight:600; border:1px solid var(--bd); color:var(--mut); }
+  .badge.ok { color:var(--ok); border-color:var(--ok); } .badge.new { color:var(--acc); border-color:var(--acc); } .badge.old { color:var(--bad); border-color:var(--bad); }
+  .card { background:var(--card); border:1px solid var(--bd); border-radius:10px; padding:14px 16px; margin:0 0 12px; }
+  .card-h { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .card p.hint { margin:6px 0 10px; }
+  button.big, .btn.big { display:block; width:100%; text-align:center; padding:12px; font-size:1rem; margin-top:8px; }
+  .btn { display:block; cursor:pointer; border:1px solid var(--acc); color:var(--acc); border-radius:7px; background:var(--card); }
+  button.d { border-color:var(--bad); color:var(--bad); } .card.danger { border-color:rgba(192,57,43,.5); }
+  button.s { padding:4px 14px; min-height:36px; }
+  .field { display:flex; flex-direction:column; gap:4px; margin:12px 0 0; color:var(--mut); font-size:.9em; }
+  .switch { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:6px; }
+  .slot { display:flex; justify-content:space-between; gap:8px; padding:10px 0; border-top:1px solid var(--bd); } .slot:first-of-type { border-top:0; }
+  input.sl { flex:1 1 100%; width:100%; padding:0; border:0; background:none; accent-color:var(--acc); min-height:40px; }
+  .row:has(.ed) { grid-template-columns:1fr; } .row .ed { justify-content:flex-end; flex-wrap:wrap; }
+  @media (max-width:520px) { .ed input, .ed select { flex:1; min-width:90px; } .ed { width:100%; } }
+  #gate .card { background:var(--card); border:1px solid var(--bd); border-radius:10px; padding:16px; margin-bottom:12px; }
+  #gate ol { margin:8px 0 12px 18px; padding:0; } #gate li { margin:4px 0; }
+  #gate button.big { width:100%; padding:14px; font-size:1.05rem; }
+  .prog { height:8px; background:var(--bd); border-radius:4px; overflow:hidden; margin:8px 0; } .prog > div { height:100%; width:0; background:var(--acc); transition:width .2s; }
+  pre.log { max-height:260px; overflow:auto; white-space:pre-wrap; font-size:.8em; background:var(--card); border:1px solid var(--bd); border-radius:8px; padding:8px; }
+  /* paired-device rows: text left, button right; the label editor stacks full width */
+  .dev { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 0; border-top:1px solid var(--bd); }
+  .dev:first-of-type { border-top:0; }
+  .dev .who { min-width:0; overflow-wrap:anywhere; }
+  .dev button { flex:none; }
+  .lbl-ed { display:grid; gap:8px; padding:0 0 12px; }
+  .lbl-ed select, .lbl-ed input { width:100%; box-sizing:border-box; text-align:left; }
+  .lbl-ed .acts { display:flex; gap:8px; } .lbl-ed .acts button { flex:1; }
+  .warn { border:1px solid var(--bad); color:var(--bad); border-radius:8px; padding:8px 12px; font-size:.9em; margin:8px 0; }
+</style>
+</head>
+<body>
+<div id="gate">
+  <h1 style="font-size:1.3rem;margin:0 0 12px">HRU 400 service</h1>
+  <div id="gateBack" hidden><button id="gateBackBtn" class="p big" style="margin:0 0 12px">Back to the app</button></div>
+  <div class="card" id="unitsCard"></div>
+  <div class="card">
+    <strong>Did you turn on the unit's Wi-Fi?</strong>
+    <ol>
+      <li>Press the Wi-Fi button on the unit so it starts advertising.</li>
+      <li>Read the Wi-Fi name and password over Bluetooth, then join. Or join manually in Android settings and skip this.</li>
+    </ol>
+    <div class="bar"><button id="btRead">Read Wi-Fi password via Bluetooth</button></div>
+    <div id="btList" hidden></div>
+    <div class="bar"><input id="wfSsid" placeholder="Wi-Fi name (ID-Gateway-...)" style="flex:1;min-width:0"><input id="wfPw" placeholder="Password" style="flex:1;min-width:0"></div>
+    <div class="bar"><button id="wfJoin">Join this Wi-Fi</button><span id="wfSt" class="hint"></span></div>
+    <button class="p big" id="connect" style="margin-top:8px">Yes, connect</button>
+    <div id="status" style="margin-top:10px">Not connected.</div>
+  </div>
+  <div class="card" id="myUnit" hidden></div>
+  <div class="card">
+    <strong>My sensors</strong>
+    <div class="hint">Scan the sticker on each sensor and name it. This works without a connection to the unit.</div>
+    <button id="gateDevBtn" class="big" style="margin-top:8px">Open my sensors</button>
+  </div>
+  <div class="card">
+    <strong>Firmware</strong>
+    <div class="hint" id="gateFw">Looks up the firmware versions in your GitHub repo (mobile data is fine, also while joined to the unit). Installing happens on the Firmware page.</div>
+    <div class="bar" style="margin-top:8px"><input id="gateUrl" style="flex:1;min-width:0" placeholder="firmware.json URL"></div>
+    <div class="bar"><button id="gateDl">Check GitHub for firmware</button></div>
+  </div>
+</div>
+<div id="app" hidden>
+  <header class="appbar"><button id="menuBtn" aria-label="Menu">&#9776;</button><div id="pageTitle">My unit</div><button id="homeBtn" aria-label="Start screen">&#8962;</button></header>
+  <div id="status2"></div>
+  <div id="scrim" hidden></div>
+  <nav id="drawer" class="drawer">
+    <div class="dh">HRU 400 service<small id="drawerUnit"></small></div>
+    <button data-t="unit" class="on">My unit</button>
+    <button data-t="live">Live data</button>
+    <button data-t="settings">Settings</button>
+    <button data-t="manual">Manual control</button>
+    <button data-t="paired">Paired devices</button>
+    <button data-t="devices">Sensors</button>
+    <button data-t="firmware">Firmware</button>
+    <button data-t="tools">Tools</button>
+    <button data-t="errors">Error codes</button>
+    <button data-t="advanced">Advanced</button>
+  </nav>
+  <main>
+    <div id="info" hidden></div>
+    <section id="unit"></section>
+    <section id="live" hidden></section>
+    <section id="settings" hidden></section>
+    <section id="manual" hidden></section>
+    <section id="paired" hidden></section>
+    <section id="devices" hidden></section>
+    <section id="firmware" hidden></section>
+    <section id="tools" hidden></section>
+    <section id="errors" hidden></section>
+    <section id="advanced" hidden>
+      <div class="card">
+        <strong>Display</strong>
+        <label class="switch"><span>Show hidden / installer items<br><span class="hint">Adds hidden settings and data values. Installer level: be careful.</span></span><input type="checkbox" id="hid"></label>
+        <label class="field">Software version (catalog)<select id="ver"></select></label>
+        <label class="field">Appliance address<input id="addr" value="82"></label>
+      </div>
+      <div class="card"><strong>Connection</strong><button id="reconnect" class="big">Reconnect to the unit</button></div>
+      <div class="card danger">
+        <strong>Raw bus message</strong>
+        <p class="hint">Sends hex bytes straight onto the unit's bus. You can break things with this.</p>
+        <input id="rawMsg" placeholder="82 8A CF 41 06 09 00 FE ..." style="width:100%">
+        <label class="switch"><span>Append checksum</span><input type="checkbox" id="rawCs" checked></label>
+        <button id="rawSend" class="d big">Send</button>
+        <pre id="rawOut" class="hint" style="white-space:pre-wrap"></pre>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="catalog.js"></script>
+<script src="firmware.js"></script>
+<script src="wifi-setup.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const CAT = window.CATALOG;
+let BASE = null;       // '' means "no connection yet"; set by connect()
+let pollTimer = null;
+
+// ---- device access: native HTTP over the Wi-Fi network (no CORS, no mobile data) ----
+const DEVICE = 'http://192.168.4.1';
+const Native = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() ? window.Capacitor.Plugins.DeviceHttp : null;
+let chain = Promise.resolve();
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+class HttpError extends Error { constructor(path, status) { super(path + ' -> HTTP ' + status); this.status = status; } }
+class NoResponse extends Error {}
+
+// One native call. Resolves {status, body}; rejects NoResponse when nothing came back at all.
+async function raw(method, path, { body, headers, file, timeoutMs = 4000 } = {}) {
+  if (!BASE) throw new Error('Not connected: press Connect first');
+  if (Native) {
+    try { return await Native.request({ url: BASE + path, method, headers, body, file, timeoutMs, network: 'wifi' }); }
+    catch (e) { throw new NoResponse(e.message || String(e)); }
+  }
+  // desktop testing fallback (needs the unit to allow CORS)
+  try {
+    const r = await fetch(BASE + path, { method, headers, body, signal: AbortSignal.timeout(timeoutMs) });
+    return { status: r.status, body: await r.text() };
+  } catch (e) { throw new NoResponse(e.message); }
+}
+
+// Serialised, 100 ms apart, 3 tries (mirrors the service app).
+function api(method, path, body) {
+  const run = async () => {
+    let err;
+    for (let i = 0; i < 3; i++) {
+      try {
+        const r = await raw(method, path, body !== undefined ? { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } } : {});
+        if (r.status < 200 || r.status >= 300) throw new HttpError(path, r.status);
+        await sleep(100);
+        try { return JSON.parse(r.body); } catch { return r.body; }
+      } catch (e) { err = e; await sleep(200); }
+    }
+    throw err;
+  };
+  const p = chain.then(run);
+  chain = p.catch(() => {});
+  return p;
+}
+
+// The app sends the value as a string ("50"); a JSON number gets HTTP 400. Retry as "50.0" in case it wants a decimal.
+async function putSetting(i, v) {
+  const url = `/i2c-appliance/${addr()}/settings/${i}`;
+  try { return await api('POST', url, { value: String(v) }); }
+  catch (e) { return api('POST', url, { value: Number(v).toFixed(1) }); }
+}
+
+function status(msg, cls) { for (const id of ['status', 'status2']) { const s = $(id); s.textContent = msg; s.className = (id === 'status2' ? 'hint ' : '') + (cls || ''); } }
+
+async function connect() {
+  stopPoll();
+  status('Connecting...');
+  if (Native && !(await Native.wifiConnected()).connected) {
+    status('This phone is not on any Wi-Fi. Join the unit\'s Wi-Fi in Android settings first.', 'bad');
+    return;
+  }
+  BASE = DEVICE;
+  try {
+    const id = await api('GET', '/identification');
+    let ver = '';
+    try { ver = await api('GET', '/version'); } catch {}
+    saveMyUnit(id, ver);
+    refreshBase();
+    $('info').textContent = JSON.stringify(id) + ' ' + JSON.stringify(ver);
+    $('gate').hidden = true; $('app').hidden = false;
+    status('Connected', 'ok');
+    showTab(document.querySelector('.drawer .on').dataset.t);
+  } catch (e) {
+    console.warn(e);
+    BASE = null;
+    status('Cannot reach the unit at 192.168.4.1. Is the unit\'s Wi-Fi on, and is the phone joined to it?', 'bad');
+  }
+}
+
+// ---- my unit: last seen identification/version, viewable offline ----
+// ---- units: every unit you saved (identity, Wi-Fi login, last-read data). `UNIT` is the data of the selected one. ----
+const unitLabel = u => (u && (u.name || u.serial)) || 'Unit';
+function newUnit(p) {
+  return { key: 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: p.name || '', article: p.article || '',
+    serial: p.serial || '', ssid: p.ssid || '', password: p.password || '', added: new Date().toISOString(), data: {} };
+}
+let UNITS = (() => {
+  try { const u = JSON.parse(localStorage.getItem('units')); if (u && Array.isArray(u.list)) return u; } catch {}
+  const first = { list: [], current: null };       // first run of this version: move the old single "My unit" in
+  let old = {}; try { old = JSON.parse(localStorage.getItem('myUnit')) || {}; } catch {}
+  if (old.id) {
+    const e = newUnit({ serial: old.id.serialNumber, ssid: lsGet('wfSsid', ''), password: lsGet('wfPw', '') });
+    e.data = old; first.list.push(e); first.current = e.key;
+  }
+  return first;
+})();
+const saveUnits = () => { try { localStorage.setItem('units', JSON.stringify(UNITS)); } catch {} };
+const curUnit = () => UNITS.list.find(u => u.key === UNITS.current) || null;
+const curArticle = () => (curUnit() && curUnit().article) || '';
+let UNIT = (curUnit() || {}).data || {};
+function saveUnit() { const e = curUnit(); if (e) { e.data = UNIT; saveUnits(); } }
+function selectUnit(key) {
+  UNITS.current = key; saveUnits();
+  const e = curUnit();
+  UNIT = (e && e.data) || {};
+  if ($('wfSsid')) { $('wfSsid').value = e ? (e.ssid || (e.serial ? 'ID-Gateway-' + e.serial : '')) : '';   /* the SSID is always ID-Gateway-<serial> */ $('wfPw').value = (e && e.password) || DEFAULT_PW; }
+  $('drawerUnit').textContent = e ? unitLabel(e) : '';
+  showMyUnit(); renderUnitsCard();
+}
+// Called when the Wi-Fi login of the selected unit becomes known (Bluetooth read or a successful join).
+function setUnitWifi(ssid, password) { const e = curUnit(); if (e) { e.ssid = ssid; e.password = password; saveUnits(); } }
+const wifiVer = () => (UNIT.ver && UNIT.ver.productVersion !== undefined) ? `${UNIT.ver.productVersion}.${UNIT.ver.softwareVersion}` : null;
+const baseVer = () => UNIT.base || null;
+// After a successful connect: find the saved unit with this serial (or save a new one) and select it.
+function saveMyUnit(id, ver) {
+  const serial = id && id.serialNumber ? String(id.serialNumber) : '';
+  let e = serial ? UNITS.list.find(u => u.serial === serial) : null;
+  if (!e) { const c = curUnit(); if (c && !c.serial) e = c; }          // a hand-added unit that had no serial yet
+  if (!e) {
+    const ssid = ($('wfSsid') || {}).value || '';
+    e = newUnit({ serial, ssid: serial && ssid.includes(serial) ? ssid : '', password: ($('wfPw') || {}).value || '' });
+    UNITS.list.push(e);
+  }
+  if (serial) e.serial = serial;
+  UNITS.current = e.key;
+  UNIT = { ...e.data, id, ver: typeof ver === 'object' ? ver : e.data.ver, at: new Date().toISOString() };
+  saveUnit(); selectUnit(e.key);
+}
+// Base unit version: same read-only identification message the original app sends; byte 4 = version, byte 8 = release.
+async function readBaseVersion() {
+  for (const m of ['82 8A 90 E0 04 00 80', '82 8A 10 E0 04 00 00']) {
+    try {
+      const res = await api('POST', '/i2c-bus/message', { message: m });
+      const b = String(res.message || '').trim().split(/\s+/).slice(6); b.pop();
+      const t = b.map(x => parseInt(x, 16));
+      if (t.length >= 9 && !t.some(Number.isNaN)) return { version: `${t[4]}.${t[8]}`, raw: res.message };
+    } catch (e) { console.warn('base version', m, e); }
+  }
+  return null;
+}
+async function refreshBase() {
+  const r = await readBaseVersion();
+  if (!r) return;
+  UNIT.base = r.version; UNIT.baseRaw = r.raw; saveUnit(); showMyUnit();
+  const cur = document.querySelector('.drawer .on');
+  if (cur && (cur.dataset.t === 'unit' || cur.dataset.t === 'firmware')) showTab(cur.dataset.t);
+}
+function unitRows(u) {
+  const id = (u.id && typeof u.id === 'object') ? u.id : {}, v = (u.ver && typeof u.ver === 'object') ? u.ver : {};
+  const rows = [
+    ['Product', id.productType],
+    ['Manufacturer', id.manufacturerSubId || id.manufacturerGroup],
+    ['Serial number', id.serialNumber],
+    ['Base unit firmware', baseVer() || 'not read yet'],
+    ['Wi-Fi module firmware', wifiVer()],
+    ['Wi-Fi firmware built', v.buildTime ? new Date(v.buildTime).toLocaleDateString() : null],
+    ['Wi-Fi firmware commit', v.gitCommit ? v.gitCommit.slice(0, 8) : null],
+  ];
+  return rows.filter(r => r[1] !== null && r[1] !== undefined && r[1] !== '');
+}
+const unitGroup = u => '<div class="grp">' + unitRows(u).map(([k, v]) => `<div class="row"><span>${esc(k)}</span><span class="val">${esc(v)}</span></div>`).join('') + '</div>';
+function renderUnitsCard() {
+  const box = $('unitsCard'); if (!box) return;
+  box.innerHTML = '<strong>My units</strong>' + (UNITS.list.length
+    ? '<div style="margin-top:6px">' + UNITS.list.map(u => `<div class="dev"><div class="who">${u.key === UNITS.current ? '<span class="badge ok">selected</span> ' : ''}<strong>${esc(unitLabel(u))}</strong><br><span class="hint">${[u.article, u.serial, u.data && u.data.at ? 'last connected ' + new Date(u.data.at).toLocaleDateString() : 'never connected'].filter(Boolean).map(esc).join(' · ')}</span></div>
+        ${u.key === UNITS.current ? '<button class="s" data-open>Details</button>' : `<button class="s" data-un="${esc(u.key)}">Select</button>`}</div>`).join('') + '</div>'
+    : '<p class="hint">No unit saved yet. Scan the Wi-Fi sticker on your unit, or connect once and it is saved automatically.</p>') +
+    '<div class="bar" style="margin-top:8px"><button id="unScan" class="p">Scan unit sticker</button><button id="unAdd">Add by hand</button></div><div id="unForm" hidden></div><div id="unSt" class="hint"></div>';
+  const st = t => { $('unSt').textContent = t; };
+  box.querySelectorAll('[data-un]').forEach(b => b.onclick = () => selectUnit(b.dataset.un));
+  const open = box.querySelector('[data-open]'); if (open) open.onclick = () => { $('gate').hidden = true; $('app').hidden = false; showTab('unit'); };
+  $('unAdd').onclick = () => unitForm({});
+  $('unScan').onclick = async () => {
+    $('unScan').disabled = true;
+    try {
+      const r = await scanSticker(st);
+      if (r.bad) st('That is not an Itho sticker. It says: ' + String(r.bad).slice(0, 60));
+      else if (r.kind !== 'unit') st('That is a sensor sticker. Add sensors under Sensors.');
+      else { st('Check the details and save.'); unitForm(r); }
+    } catch (e) { st(e.message === 'cancelled' ? '' : 'Scan failed: ' + (e.message || e)); }
+    if ($('unScan')) $('unScan').disabled = false;
+  };
+}
+function unitForm(p) {
+  const f = $('unForm'); f.hidden = false;
+  const field = (id, label, v, extra = '') => `<label class="field">${label}<input id="${id}" value="${esc(v || '')}" ${extra}></label>`;
+  f.innerHTML = `<div class="card" style="margin-top:8px">
+    ${field('ufName', 'Name', p.name, 'maxlength="40" placeholder="e.g. Attic HRU"')}${field('ufArt', 'Article number', p.article, 'placeholder="03-00632"')}${field('ufSer', 'Serial number', p.serial, 'placeholder="WT0000000000"')}
+    ${field('ufSsid', 'Wi-Fi name', p.ssid, 'placeholder="ID-Gateway-..."')}${field('ufPw', 'Wi-Fi password', p.password, 'autocomplete="off"')}
+    <div class="acts" style="display:flex;gap:8px;margin-top:8px"><button id="ufSave" class="p" style="flex:1">Save unit</button><button id="ufCancel" style="flex:1">Cancel</button></div></div>`;
+  $('ufCancel').onclick = () => { f.hidden = true; f.innerHTML = ''; };
+  $('ufSave').onclick = () => {
+    const v = id => $(id).value.trim();
+    if (!v('ufSer') && !v('ufSsid')) { $('unSt').textContent = 'Enter at least the serial number or the Wi-Fi name.'; return; }
+    let e = v('ufSer') ? UNITS.list.find(u => u.serial === v('ufSer')) : null;
+    if (!e) { e = newUnit({}); UNITS.list.push(e); }
+    Object.assign(e, { name: v('ufName') || e.name, article: v('ufArt') || e.article, serial: v('ufSer') || e.serial, ssid: v('ufSsid') || e.ssid, password: $('ufPw').value || e.password });
+    selectUnit(e.key);
+  };
+}
+function showMyUnit() {
+  const el = $('myUnit');
+  if (!UNIT.id) { el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = `<strong>${esc(unitLabel(curUnit()))}</strong> <span class="hint">last connected ${esc(new Date(UNIT.at).toLocaleString())}</span><div style="margin-top:8px">${unitGroup(UNIT)}</div>`;
+}
+function renderUnit() {
+  const e = curUnit();
+  const field = (id, label, v, extra = '') => `<label class="field">${label}<input id="${id}" value="${esc(v || '')}" ${extra}></label>`;
+  $('unit').innerHTML = (e ? `<div class="card"><strong>Unit details</strong>
+      ${field('uName', 'Name', e.name, 'maxlength="40" placeholder="e.g. Attic HRU"')}${field('uArt', 'Article number', e.article, 'placeholder="03-00632"')}${field('uSer', 'Serial number', e.serial)}
+      ${field('uSsid', 'Wi-Fi name', e.ssid)}${field('uPw', 'Wi-Fi password', e.password, 'type="password" autocomplete="off"')}
+      <label class="switch"><span>Show password</span><input type="checkbox" id="uShow"></label>
+      <button id="uSave" class="p big">Save</button><div id="uSt" class="hint"></div></div>` : '<p class="hint">No unit saved yet. Connect once, or scan the sticker from the start screen.</p>') +
+    (UNIT.id ? unitGroup(UNIT) : '<p class="hint">Nothing read yet.</p>') +
+    `<p class="hint">Last read ${UNIT.at ? esc(new Date(UNIT.at).toLocaleString()) : 'never'}. Everything here is saved on the phone, so you can see it without the unit.</p>
+     <div class="bar"><button id="unitRefresh">Read again from the unit</button><button id="unitSwitch">Switch unit</button></div>` +
+    (e ? `<div class="card danger"><strong>Remove this unit</strong><p class="hint">Deletes it, and the sensor names saved for it, from this phone. Nothing changes on the unit itself.</p><button id="unitDel" class="d big">Remove ${esc(unitLabel(e))}</button></div>` : '');
+  $('unitRefresh').onclick = connect;
+  $('unitSwitch').onclick = goHome;
+  if (!e) return;
+  $('uShow').onchange = () => { $('uPw').type = $('uShow').checked ? 'text' : 'password'; };
+  $('uSave').onclick = () => {
+    Object.assign(e, { name: $('uName').value.trim(), article: $('uArt').value.trim(), serial: $('uSer').value.trim(), ssid: $('uSsid').value.trim(), password: $('uPw').value });
+    selectUnit(e.key); $('uSt').textContent = 'Saved.';
+  };
+  $('unitDel').onclick = () => {
+    if (!confirm(`Remove ${unitLabel(e)} from this phone? Its sensor names are deleted too. Nothing changes on the unit.`)) return;
+    const all = libAll(); delete all[e.serial || '_']; try { localStorage.setItem('deviceLib', JSON.stringify(all)); } catch {}
+    UNITS.list = UNITS.list.filter(u => u !== e);
+    selectUnit(UNITS.list.length ? UNITS.list[0].key : null);
+    goHome();
+  };
+}
+
+// ---- rendering helpers ----
+const cat = () => CAT[$('ver').selectedIndex];
+const addr = () => encodeURIComponent($('addr').value.trim());
+const fmt = (v, it) => {
+  const n = Number(v);
+  if (Number.isNaN(n)) return String(v);
+  const opt = (it.o || []).find(o => Number(o.v) === n);
+  if (opt) return opt.n;
+  return n.toFixed(it.p || 0) + (it.u && it.u !== '-' ? ' ' + it.u : '');
+};
+function group(title, rows) {
+  return `<h2>${title}</h2><div class="grp">${rows.join('')}</div>`;
+}
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---- live data ----
+function renderLive() {
+  const dg = cat().data.concat($('hid').checked ? [{ g: 'Hidden data values', items: cat().hdata }] : []);
+  $('live').innerHTML = '<div class="row" style="border-top:1px solid var(--bd);border-radius:8px;margin-bottom:8px"><span>Current fault</span><span class="val" id="fault">-</span></div>' + dg.map(g => group(esc(g.g), g.items.map(it =>
+    `<div class="row"><span>${esc(it.n)}</span><span class="val" data-d="${it.i}">-</span></div>`))).join('');
+  pollOnce();
+}
+async function pollOnce() {
+  if (!BASE || $('live').hidden) return;
+  try {
+    const vals = await api('GET', `/i2c-appliance/${addr()}/data-values`);
+    const byIdx = Object.fromEntries((vals || []).map(v => [v.idx, v.dataTypeValue]));
+    if (vals && vals.length) {                 // the app reads the fault code from the first data value
+      const code = parseInt(vals[0].dataTypeValue);
+      const e = cat().err.find(x => x.i === code);
+      $('fault').textContent = code === 255 ? 'None' : (e ? `${code}: ${e.n}` : String(code));
+      $('fault').style.color = code === 255 ? '' : 'var(--bad)';
+    }
+    const items = Object.fromEntries(cat().data.concat([{ items: cat().hdata }]).flatMap(g => g.items).map(it => [it.i, it]));
+    document.querySelectorAll('[data-d]').forEach(el => {
+      const i = el.dataset.d;
+      if (byIdx[i] !== undefined) el.textContent = fmt(byIdx[i], items[i]);
+    });
+  } catch (e) { status('Live data failed: ' + e.message, 'bad'); }
+  pollTimer = setTimeout(pollOnce, 2000);
+}
+function stopPoll() { clearTimeout(pollTimer); pollTimer = null; }
+
+// ---- settings ----
+const sgroups = () => cat().settings.concat($('hid').checked ? [{ g: 'Hidden / installer settings (careful)', items: cat().hset }] : []);
+function renderSettings() {
+  $('settings').innerHTML =
+    '<div class="bar"><button id="readAll">Read all settings</button><span class="hint">Writes go straight to the unit. Defaults for article 03-00632 are shown for reference.</span></div>' +
+    sgroups().map(g => group(esc(g.g), g.items.map(it => {
+      const lim = it.min != null ? `${it.min} to ${it.max}` : 'n/a';
+      const ranged = !it.o.length && it.min != null && it.max != null && Number(it.max) > Number(it.min);
+      const slider = ranged ? `<input class="sl" data-sl="${it.i}" type="range" step="${it.step || 1}" min="${it.min}" max="${it.max}" value="${it.min}">` : '';
+      const input = it.o.length
+        ? `<select data-s="${it.i}">${it.o.map(o => `<option value="${o.v}">${esc(o.n)}</option>`).join('')}</select>`
+        : `<input data-s="${it.i}" type="number" step="${it.step || 1}"${it.min != null ? ` min="${it.min}" max="${it.max}"` : ''}>`;
+      return `<div class="row"><span>${esc(it.n)}</span>
+        <span class="ed">${slider}${input} ${esc(it.u && it.u !== '-' ? it.u : '')}
+        ${it.w === false ? '' : `<button data-w="${it.i}">Write</button>`}</span>
+        <span class="hint">#${it.i} · range ${lim} · default ${esc(it.def)} · <span data-r="${it.i}">not read</span>${it.h ? ' · ' + esc(it.h) : ''}</span></div>`;
+    }))).join('');
+  $('readAll').onclick = readAllSettings;
+  document.querySelectorAll('[data-w]').forEach(b => b.onclick = () => writeSetting(b.dataset.w));
+  // slider <-> number box stay in sync; Write fills in while the value differs from what was read
+  document.querySelectorAll('[data-sl]').forEach(sl => {
+    const i = sl.dataset.sl, el = document.querySelector(`[data-s="${i}"]`);
+    sl.oninput = () => { el.value = sl.value; markDirty(i); };
+    el.addEventListener('input', () => { if (el.value !== '') sl.value = el.value; markDirty(i); });
+  });
+  document.querySelectorAll('select[data-s]').forEach(el => el.addEventListener('change', () => markDirty(el.dataset.s)));
+}
+function markDirty(i) {
+  const el = document.querySelector(`[data-s="${i}"]`), b = document.querySelector(`[data-w="${i}"]`);
+  if (el && b) b.classList.toggle('p', el.value !== (el.dataset.orig ?? ''));
+}
+async function readSetting(i) {
+  const r = await api('GET', `/i2c-appliance/${addr()}/settings/${i}`);
+  const el = document.querySelector(`[data-s="${i}"]`);
+  if (el && r && r.value !== undefined) {
+    el.value = r.value; el.dataset.orig = el.value;
+    const sl = document.querySelector(`[data-sl="${i}"]`); if (sl) sl.value = el.value;
+    markDirty(i);
+  }
+  const info = document.querySelector(`[data-r="${i}"]`);
+  if (info) info.textContent = r && r.lowerbound !== undefined ? `device range ${r.lowerbound} to ${r.upperbound}` : 'read';
+}
+async function readAllSettings() {
+  const b = $('readAll'); b.disabled = true;
+  const ids = sgroups().flatMap(g => g.items.map(it => it.i));
+  let n = 0;
+  for (const i of ids) {
+    b.textContent = `Reading ${++n}/${ids.length}...`;
+    try { await readSetting(i); } catch (e) { const info = document.querySelector(`[data-r="${i}"]`); if (info) info.textContent = 'read failed'; }
+  }
+  b.textContent = 'Read all settings'; b.disabled = false;
+}
+async function writeSetting(i) {
+  const el = document.querySelector(`[data-s="${i}"]`);
+  const v = Number(el.value);
+  if (el.value === '' || Number.isNaN(v)) return;
+  if (!confirm(`Write ${v} to setting #${i}?`)) return;
+  try { await putSetting(i, v); await readSetting(i); status('Setting #' + i + ' written', 'ok'); }
+  catch (e) { status('Write failed: ' + e.message, 'bad'); }
+}
+
+// ---- manual control ----
+function renderManual() {
+  $('manual').innerHTML =
+    '<div class="warn">Manual control overrides the unit until you press Release. Release all controls when you are done.</div>' +
+    '<div class="bar"><button id="readCtl">Read state</button></div>' +
+    cat().manual.map(g => group(esc(g.g), g.items.map(it => {
+      const input = it.o.length
+        ? `<select data-m="${it.i}">${it.o.map(o => `<option value="${o.v}">${esc(o.n)}</option>`).join('')}</select>`
+        : `<input data-m="${it.i}" type="number" step="${it.step || 1}" min="${it.min}" max="${it.max}">`;
+      return `<div class="row"><span>${esc(it.n)}</span>
+        <span class="ed">${input} ${esc(it.u && it.u !== '-' ? it.u : '')}
+        <button data-on="${it.i}">Set</button><button data-off="${it.i}">Release</button></span>
+        <span class="hint">#${it.i} · <span data-ms="${it.i}">not read</span></span></div>`;
+    }))).join('');
+  $('readCtl').onclick = async () => {
+    for (const i of cat().manual.flatMap(g => g.items.map(it => it.i))) await readCtl(i).catch(() => {});
+  };
+  document.querySelectorAll('[data-on]').forEach(b => b.onclick = () => setCtl(b.dataset.on, 'on'));
+  document.querySelectorAll('[data-off]').forEach(b => b.onclick = () => setCtl(b.dataset.off, 'off'));
+}
+async function readCtl(i) {
+  const r = await api('GET', `/i2c-appliance/${addr()}/externalcontrol/${i}`);
+  const el = document.querySelector(`[data-m="${i}"]`);
+  if (el && r && r.value !== undefined) el.value = r.value;
+  const s = document.querySelector(`[data-ms="${i}"]`);
+  if (s && r) s.textContent = 'control ' + r.controlMode;
+}
+async function setCtl(i, mode) {
+  const el = document.querySelector(`[data-m="${i}"]`);
+  const v = Number(el.value);
+  if (mode === 'on' && (el.value === '' || Number.isNaN(v))) return;
+  if (mode === 'on' && !confirm(`Force control #${i} to ${v}?`)) return;
+  try { await api('POST', `/i2c-appliance/${addr()}/externalcontrol/${i}`, { value: mode === 'on' ? v : (Number(el.value) || 0), externalMode: mode }); await readCtl(i); status('Control #' + i + ' ' + mode, 'ok'); }
+  catch (e) { status('Failed: ' + e.message, 'bad'); }
+}
+
+// ---- paired RF devices (read-only; same query the service app uses against the HMI) ----
+const checksum8 = hex => {
+  const sum = hex.trim().split(/\s+/).reduce((a, b) => a + parseInt(b, 16), 0);
+  return ((~(sum & 255) + 1) & 255).toString(16).toUpperCase().padStart(2, '0');
+};
+async function readPaired() {
+  const req = '8A 8A A4 01 04 00';
+  const res = await api('POST', '/i2c-bus/message', { message: req + ' ' + checksum8(req) });
+  const b = String(res.message || '').trim().split(/\s+/).slice(6);
+  b.pop();                                   // trailing checksum
+  const slots = [];
+  for (let u = 9, n = 1; u < 128 && b[u + 1] !== undefined; u += 6, n++) {
+    const addr = '0x' + b.slice(u + 1, u + 5).join('');
+    slots.push({ n, addr, q: parseInt(b[u + 5], 16), empty: addr === '0x00000000' });
+  }
+  return { wifi: parseInt(b[8], 16), slots, raw: res.message };
+}
+// ---- device library: your own name + type per sensor, kept on this phone (keyed by RF address) ----
+// Works without the unit: sensors can be added by scanning the sticker, and show up by name on Paired devices later.
+const DEV_TYPES = ['CO2 sensor', 'Humidity sensor', 'Button / remote', 'Other'];
+const libKey = () => (curUnit() && curUnit().serial) || (UNIT.id && UNIT.id.serialNumber) || '_';
+const libAll = () => { try { return JSON.parse(localStorage.getItem('deviceLib')) || {}; } catch { return {}; } };
+const libGet = () => Object.assign({}, ...Object.values(libAll()));      // RF addresses are unique, so merge all units
+function libSet(addr, v) {
+  const all = libAll();
+  for (const k of Object.keys(all)) delete all[k][addr];
+  if (v) (all[libKey()] = all[libKey()] || {})[addr] = v;
+  try { localStorage.setItem('deviceLib', JSON.stringify(all)); } catch {}
+}
+const slotsAll = () => { try { return JSON.parse(localStorage.getItem('slotsByUnit')) || {}; } catch { return {}; } };
+const slotsSeen = () => slotsAll()[libKey()] || {};
+// Remember which RF address sat in which slot at the last read of this unit (rebuilt each time, so unpaired devices drop out).
+function rememberSlots(r) {
+  const all = slotsAll(), now = new Date().toISOString(), seen = {};
+  r.slots.filter(x => !x.empty).forEach(x => { seen[x.addr] = { n: x.n, at: now }; });
+  all[libKey()] = seen;
+  try { localStorage.setItem('slotsByUnit', JSON.stringify(all)); } catch {}
+}
+const normAddr = h => '0x' + String(h).toUpperCase().padStart(8, '0');
+const devName = l => l && (l.name || l.type);
+
+// Itho stickers. RF device (Data Matrix): "...?IE.VMS-12C39?Vh12s10?R96EB6B?" -> I = model, R = RF id (the unit lists it as 0x00<R>).
+// Unit Wi-Fi sticker (QR): "03-00632;001;#WT0000000000;ID-Gateway-WT0000000000;<password>" = article;version;#serial;SSID;password.
+function parseSticker(raw) {
+  const sep = '[?\\x1d\\x1e]';
+  const rf = new RegExp(sep + 'R([0-9A-Fa-f]{6,8})(?:' + sep + '|$)').exec(raw);
+  const model = new RegExp(sep + 'I([^?\\x1d\\x1e]+)').exec(raw);
+  if (rf) return { kind: 'sensor', addr: normAddr(rf[1]), model: model ? model[1] : '' };
+  const u = /^(\d{2}-\d{5});[^;]*;#?([^;]+);([^;]+);(.+)$/.exec(raw.trim());
+  if (u) return { kind: 'unit', article: u[1], serial: u[2], ssid: u[3], password: u[4] };
+  const w = /^WIFI:(?:.*;)?S:((?:\\.|[^;])*);(?:.*;)?P:((?:\\.|[^;])*);/.exec(raw.trim());          // standard Wi-Fi QR
+  if (w) return { kind: 'unit', article: '', serial: (/ID-Gateway-(\w+)/.exec(w[1]) || [])[1] || '', ssid: w[1], password: w[2] };
+  return null;
+}
+const Scanner = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.BarcodeScanner;
+async function scanSticker(say) {
+  if (!Native || !Scanner) throw new Error('Scanning only works inside the Android app');
+  if (!(await Scanner.isGoogleBarcodeScannerModuleAvailable()).available) {
+    say('Downloading the scanner module (once, needs internet)...');
+    await Scanner.installGoogleBarcodeScannerModule();
+    throw new Error('The scanner module is downloading. Turn on mobile data and try again in a minute.');
+  }
+  const { barcodes } = await Scanner.scan({ formats: ['DATA_MATRIX', 'QR_CODE'] });
+  if (!barcodes.length) throw new Error('cancelled');
+  return parseSticker(barcodes[0].rawValue || '') || { bad: barcodes[0].rawValue };
+}
+
+// Inline editor: type + name for one device. `cur` is the stored entry (or {}); onDone runs after save/remove.
+function labelEditor(box, addr, cur, onDone) {
+  box.hidden = false;
+  box.innerHTML = `<div class="lbl-ed"><select data-f="type">${DEV_TYPES.map(t => `<option ${t === (cur.type || DEV_TYPES[0]) ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>
+    <input data-f="name" placeholder="Name, e.g. Bathroom" value="${esc(cur.name || '')}" maxlength="40">
+    <div class="acts"><button class="p" data-f="save">Save</button>${libGet()[addr] ? '<button data-f="clear">Remove</button>' : ''}</div></div>`;
+  const q = f => box.querySelector(`[data-f=${f}]`);
+  q('save').onclick = () => { libSet(addr, { ...cur, type: q('type').value, name: q('name').value.trim(), added: cur.added || new Date().toISOString() }); onDone(); };
+  if (q('clear')) q('clear').onclick = () => { libSet(addr, null); onDone(); };
+}
+
+// ---- sensors page (works offline) ----
+function renderDevices(openAddr, auto = true) {
+  const lib = libAll()[libKey()] || {}, seen = slotsSeen();
+  const entries = Object.entries(lib).sort((a, b) => (devName(a[1]) || '~').localeCompare(devName(b[1]) || '~'));
+  $('devices').innerHTML = `
+    <div class="card">
+      <strong>Sensors of ${esc(unitLabel(curUnit()))}</strong>
+      <p class="hint">Scan the sticker on a sensor, give it a name, done. This works without the unit, so you can walk around the house. The names show on Paired devices the next time you connect.</p>
+      <button id="dvScan" class="p big">Scan a sticker</button>
+      <div class="bar" style="margin-top:8px"><input id="dvId" placeholder="or type the ID, e.g. 96EB6B" maxlength="8" autocapitalize="characters" style="flex:1;min-width:0"><button id="dvAdd">Add</button></div>
+      <div id="dvSt" class="hint"></div>
+    </div>
+    <div class="card" id="dvCard">${entries.length ? entries.map(([a, l]) => {
+      const sl = seen[a];
+      return `<div class="dev"><div class="who">${devName(l) ? `<strong>${esc(devName(l))}</strong>` : '<span class="hint">no name yet</span>'}<br><span class="hint">${[l.name && l.type, l.model, a, sl ? `slot ${sl.n} when last read` : 'not seen on the unit'].filter(Boolean).map(esc).join(' · ')}</span></div>
+        <button class="s" data-lbl="${esc(a)}">Edit</button></div><div data-ed="${esc(a)}" hidden></div>`;
+    }).join('') : '<p class="hint">No sensors yet.</p>'}</div>
+    <div class="card"><div class="hint">${BASE ? 'Slots are read from the unit when you open this page.' : 'Connect to the unit to see which slot each sensor is in.'}</div><button id="dvConnect" class="big">${BASE ? 'Refresh slots from the unit' : 'Connect to the unit'}</button></div>`;
+  const st = t => { $('dvSt').textContent = t; };
+  const again = a => renderDevices(a, false);
+  const bindEdit = a => { const box = $('devices').querySelector(`[data-ed="${a}"]`); if (box) labelEditor(box, a, libGet()[a] || {}, () => again()); };
+  $('devices').querySelectorAll('[data-lbl]').forEach(b => b.onclick = () => {
+    const box = $('devices').querySelector(`[data-ed="${b.dataset.lbl}"]`);
+    if (!box.hidden) { box.hidden = true; return; }
+    bindEdit(b.dataset.lbl);
+  });
+  const add = (addr, model) => {
+    const had = !!libGet()[addr];
+    if (!had) libSet(addr, { type: '', name: '', model: model || '', added: new Date().toISOString() });
+    again(addr);
+    $('dvSt').textContent = had ? 'That sensor is already in the list. Edit it below.' : 'Added. Pick a type and a name.';
+  };
+  $('dvScan').onclick = async () => {
+    $('dvScan').disabled = true;
+    try {
+      const r = await scanSticker(st);
+      if (r.bad) st('That is not an Itho sticker. It says: ' + String(r.bad).slice(0, 80));
+      else if (r.kind !== 'sensor') st('That is the unit\'s Wi-Fi sticker. Add a unit from the start screen.');
+      else add(r.addr, r.model);
+    } catch (e) { st(e.message === 'cancelled' ? '' : 'Scan failed: ' + (e.message || e)); }
+    if ($('dvScan')) $('dvScan').disabled = false;
+  };
+  $('dvAdd').onclick = () => {
+    const h = $('dvId').value.trim().replace(/^0x/i, '').toUpperCase();
+    if (!/^[0-9A-F]{6,8}$/.test(h)) { st('The ID is 6 to 8 characters, 0-9 and A-F (e.g. 96EB6B).'); return; }
+    add(normAddr(h), '');
+  };
+
+  if (openAddr) bindEdit(openAddr);
+  $('dvConnect').onclick = async () => {
+    if (!BASE) { goHome(); connect(); return; }
+    st('Reading the paired list...');
+    try { rememberSlots(await readPaired()); again(); } catch (e) { st('Read failed: ' + e.message); }
+  };
+  if (BASE && auto) readPaired().then(r => {
+    const key = m => JSON.stringify(Object.entries(m).map(([a, v]) => [a, v.n]));
+    const before = key(slotsSeen()); rememberSlots(r);
+    if (key(slotsSeen()) !== before && !$('devices').hidden) renderDevices(undefined, false);
+  }).catch(() => {});
+}
+
+function renderPaired() {
+  $('paired').innerHTML = `
+    <div class="card">
+      <div class="card-h"><strong>Paired devices</strong><button id="readPaired" class="s">Refresh</button></div>
+      <div id="pairedOut" class="hint">Reading...</div>
+    </div>
+    <div class="card">
+      <strong>Pair a new device</strong>
+      <p class="hint">Press Start, then press the pair button on the sensor or remote within 2 minutes.</p>
+      <button id="bindOn" class="p big">Start pairing</button>
+      <div id="bindBox" hidden>
+        <div class="prog"><div id="bindBar"></div></div>
+        <div class="card-h"><span id="bindT" class="val"></span><button id="bindOff">Stop pairing</button></div>
+      </div>
+    </div>
+    <div class="card danger">
+      <strong>Remove all pairings</strong>
+      <p class="hint">Every paired remote and sensor has to be paired again.</p>
+      <button id="delAll" class="d big">Delete all bindings</button>
+    </div>`;
+  // Messages copied from the service app's own Koppelwizard (cloud wizard data for 03-00632); checksums included.
+  const BIND = {
+    start: '82 8A CF 41 06 09 00 FE 00 00 00 00 00 00 00 D7',
+    stop:  '82 8A CF 41 06 09 00 FF 00 00 00 00 00 00 00 D6',
+    clear: '82 8A CF 41 06 09 00 EE 00 00 00 00 00 00 00 E7',
+  };
+  const send = m => api('POST', '/i2c-bus/message', { message: m });
+  let tick = null;
+  const stopTick = () => { clearInterval(tick); tick = null; if ($('bindBox')) $('bindBox').hidden = true; if ($('bindOn')) $('bindOn').hidden = false; };
+  $('bindOn').onclick = async () => {
+    try {
+      await send(BIND.start);
+      status('Pairing mode on: press the pair button on the new sensor/remote now.', 'ok');
+      let left = 120; stopTick();
+      $('bindOn').hidden = true; $('bindBox').hidden = false;
+      const draw = () => { $('bindT').textContent = left + ' s'; $('bindBar').style.width = (100 * left / 120) + '%'; };
+      draw();
+      tick = setInterval(async () => {
+        if (!$('bindT')) { clearInterval(tick); tick = null; try { await send(BIND.stop); } catch {} return; }   // page left: close the window
+        left--; draw();
+        if (left <= 0) { stopTick(); try { await send(BIND.stop); } catch {} status('Pairing window ended.'); $('readPaired').click(); }
+      }, 1000);
+    } catch (e) { status('Start failed: ' + e.message, 'bad'); }
+  };
+  $('bindOff').onclick = async () => {
+    stopTick();
+    try { await send(BIND.stop); status('Pairing mode off.', 'ok'); $('readPaired').click(); }
+    catch (e) { status('Stop failed: ' + e.message, 'bad'); }
+  };
+  $('delAll').onclick = async () => {
+    if (!confirm('Delete ALL RF bindings? Every paired remote/sensor must be paired again.')) return;
+    try { await send(BIND.clear); status('Bindings cleared, reading back...', 'ok'); await sleep(500); $('readPaired').click(); }
+    catch (e) { status('Delete failed: ' + e.message, 'bad'); }
+  };
+  $('readPaired').onclick = async () => {
+    $('pairedOut').textContent = 'Reading...';
+    try {
+      const r = await readPaired();
+      const used = r.slots.filter(x => !x.empty);
+      $('pairedOut').className = '';
+      const lib = libGet();
+      rememberSlots(r);
+      const row = x => {
+        const l = lib[x.addr];
+        return `<div class="dev"><div class="who">Slot ${x.n} · ${devName(l) ? `<strong>${esc(devName(l))}</strong>` : '<span class="hint">not labelled</span>'}<br><span class="hint">${l && l.name && l.type ? esc(l.type) + ' · ' : ''}${x.addr} · signal ${x.q}</span></div>
+          <button class="s" data-lbl="${x.addr}">${devName(l) ? 'Edit' : 'Label'}</button></div><div data-ed="${x.addr}" hidden></div>`;
+      };
+      $('pairedOut').innerHTML = (used.length ? used.map(row).join('') : '<div class="hint">No paired devices.</div>') +
+        `<p class="hint">Labels are kept on this phone only and follow the device, not the slot. Add sensors by scanning their sticker under Sensors. Unit Wi-Fi quality ${r.wifi}</p>`;
+      $('pairedOut').querySelectorAll('[data-lbl]').forEach(b => b.onclick = () => {
+        const box = $('pairedOut').querySelector(`[data-ed="${b.dataset.lbl}"]`);
+        if (!box.hidden) { box.hidden = true; return; }
+        labelEditor(box, b.dataset.lbl, lib[b.dataset.lbl] || {}, () => $('readPaired').click());
+      });
+    } catch (e) { $('pairedOut').className = 'hint'; $('pairedOut').textContent = 'Read failed: ' + e.message; }
+  };
+  $('readPaired').click();
+}
+
+// ---- tools: settings backup/restore, defaults, reset product ----
+function renderTools() {
+  $('tools').innerHTML = `
+    <div class="card">
+      <strong>Settings backup</strong>
+      <p class="hint">Saves every setting (hidden ones too if enabled under Advanced) to a file. The share sheet opens so you can keep it in Drive, mail or Files.</p>
+      <button id="tBackup" class="p big">Back up settings</button>
+      <label class="btn big">Restore from file<input type="file" id="tRestore" accept=".json,application/json" hidden></label>
+    </div>
+    <div id="tProg" class="hint" style="margin-bottom:12px"></div>
+    <div class="card danger">
+      <strong>Reset</strong>
+      <p class="hint">Writes the catalog defaults for article 03-00632 to the visible settings, like the app. Back up first.</p>
+      <button id="tDefaults" class="d big">Back to default settings</button>
+      <p class="hint" style="margin-top:16px">Restarts the unit's controller (message CA BC 06 01 00), like "Reset product" in the app.</p>
+      <button id="tReset" class="d big">Reset product</button>
+    </div>`;
+  const prog = m => { $('tProg').textContent = m; };
+  const allSettingItems = () => sgroups().flatMap(g => g.items);
+
+  $('tReset').onclick = async () => {
+    if (!confirm('Reset product?')) return;
+    try { await api('POST', '/i2c-bus/message', { message: '82 8A CA BC 06 01 00 67' }); status('Reset sent', 'ok'); }
+    catch (e) { status('Reset failed: ' + e.message, 'bad'); }
+  };
+
+  $('tBackup').onclick = async () => {
+    const items = allSettingItems(), out = {};
+    let n = 0;
+    for (const it of items) {
+      prog(`Reading ${++n}/${items.length}...`);
+      try { const r = await api('GET', `/i2c-appliance/${addr()}/settings/${it.i}`); if (r && r.value !== undefined) out[it.i] = r.value; } catch {}
+    }
+    const text = JSON.stringify({ article: '03-00632', sw: cat().sw, saved: new Date().toISOString(), settings: out, devices: libGet() }, null, 1);
+    const name = `hru400-settings-${new Date().toISOString().slice(0, 10)}.json`;
+    try {
+      if (Native) await Native.shareFile({ name, text });     // WebViews can't download blobs; use the share sheet
+      else { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); }
+      prog(`Backed up ${Object.keys(out).length} of ${items.length} settings.`);
+    } catch (e) { prog('Backup failed: ' + (e.message || e)); }
+  };
+
+  $('tRestore').onchange = async ev => {
+    const f = ev.target.files[0]; if (!f) return;
+    let data, devices; try { const j = JSON.parse(await f.text()); data = j.settings; devices = j.devices; } catch { prog('Not a valid backup file.'); return; }
+    const keys = Object.keys(data || {});
+    if (!keys.length || !confirm(`Write ${keys.length} settings from ${f.name} to the unit?`)) return;
+    if (devices && typeof devices === 'object') Object.entries(devices).forEach(([a, v]) => libSet(a, v));
+    let n = 0, bad = 0;
+    for (const k of keys) {
+      prog(`Writing ${++n}/${keys.length}...`);
+      try { await putSetting(k, Number(data[k])); } catch { bad++; }
+    }
+    prog(`Restored ${keys.length - bad} settings, ${bad} failed.`);
+  };
+
+  $('tDefaults').onclick = async () => {
+    const items = cat().settings.flatMap(g => g.items).filter(it => it.w !== false && it.def != null);
+    if (!confirm(`Write catalog defaults to ${items.length} settings? This overwrites your current values (back them up first).`)) return;
+    if (!confirm('Really reset all visible settings to defaults?')) return;
+    let n = 0, bad = 0;
+    for (const it of items) {
+      prog(`Writing default ${++n}/${items.length}: ${it.n}`);
+      try { await putSetting(it.i, Number(it.def)); } catch { bad++; }
+    }
+    prog(`Defaults written: ${items.length - bad} ok, ${bad} failed.`);
+  };
+}
+
+// ---- advanced: raw bus message ----
+$('rawSend').onclick = async () => {
+  let m = $('rawMsg').value.trim().toUpperCase();
+  if (!/^([0-9A-F]{2} ?)+$/.test(m)) { $('rawOut').textContent = 'Hex bytes only.'; return; }
+  m = m.replace(/\s+/g, ' ').trim();
+  if ($('rawCs').checked) m += ' ' + checksum8(m);
+  if (!confirm('Send raw message to the unit?\n' + m)) return;
+  try { $('rawOut').textContent = 'sent: ' + m + '\n' + JSON.stringify(await api('POST', '/i2c-bus/message', { message: m })); }
+  catch (e) { $('rawOut').textContent = 'Failed: ' + e.message; }
+};
+
+// ---- error codes (reference) ----
+function renderErrors() {
+  $('errors').innerHTML = '<p class="hint">Reference list from the catalog. 255 means "no error".</p>' +
+    group('Error codes', cat().err.map(e => `<div class="row"><span>${esc(e.n)}</span><span class="val">${e.i}</span></div>`));
+}
+
+// ---- tabs ----
+function showTab(t) {
+  stopPoll();
+  document.querySelectorAll('.drawer button[data-t]').forEach(b => b.classList.toggle('on', b.dataset.t === t));
+  for (const s of ['unit', 'live', 'settings', 'manual', 'paired', 'devices', 'tools', 'firmware', 'errors', 'advanced']) $(s).hidden = s !== t;
+  openMenu(false);
+  $('pageTitle').textContent = document.querySelector(`.drawer button[data-t="${t}"]`).textContent;
+  if (t === 'unit') renderUnit();
+  if (t === 'live') renderLive();
+  if (t === 'settings') renderSettings();
+  if (t === 'manual') renderManual();
+  if (t === 'paired') renderPaired();
+  if (t === 'devices') renderDevices();
+  if (t === 'tools') renderTools();
+  if (t === 'firmware') renderFirmware();
+  if (t === 'errors') renderErrors();
+}
+document.querySelectorAll('.drawer button[data-t]').forEach(b => b.onclick = () => showTab(b.dataset.t));
+$('ver').innerHTML = CAT.map(c => `<option>${c.sw}</option>`).join('');
+$('ver').selectedIndex = CAT.findIndex(c => c.sw === '8');
+$('ver').onchange = () => showTab(document.querySelector('.drawer .on').dataset.t);
+$('hid').onchange = $('ver').onchange;
+const openMenu = o => { $('drawer').classList.toggle('open', o); $('scrim').hidden = !o; };
+$('menuBtn').onclick = () => openMenu(true);
+$('scrim').onclick = () => openMenu(false);
+// Start screen <-> app. The app keeps its page and connection while the start screen is shown.
+const goHome = () => { stopPoll(); $('app').hidden = true; $('gate').hidden = false; $('gateBack').hidden = false; renderUnitsCard(); window.scrollTo(0, 0); };
+$('homeBtn').onclick = goHome;
+$('gateBackBtn').onclick = () => { $('gate').hidden = true; $('app').hidden = false; showTab(document.querySelector('.drawer .on').dataset.t); };
+$('connect').onclick = connect;
+$('gateDevBtn').onclick = () => { $('gate').hidden = true; $('app').hidden = false; showTab('devices'); };
+// Already on the unit's Wi-Fi (joined earlier in Android settings)? Then skip the Bluetooth/join step.
+(async () => {
+  if (!Native) return;
+  try {
+    if (!(await Native.wifiConnected()).connected) return;
+    status('Checking for the unit...');
+    BASE = DEVICE;
+    await raw('GET', '/identification', { timeoutMs: 2500 });
+    status('Unit detected on this Wi-Fi.', 'ok');
+    await connect();
+  } catch { BASE = null; status('Not connected.'); }
+})();
+$('reconnect').onclick = connect;
+selectUnit(UNITS.current);
+</script>
+</body>
+</html>
