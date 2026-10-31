@@ -30,7 +30,7 @@ function serve() {
 }
 
 // Opens the app. `baseVersion` is what the mocked unit reports as its base firmware byte (software version).
-async function open(port, { seed = {}, baseVersion = '08', serial = 'WT0000000001', paired = PAIRED } = {}) {
+async function open(port, { seed = {}, baseVersion = '08', serial = 'WT0000000001', paired = PAIRED, connected = true } = {}) {
   const errors = [];
   const vc = new VirtualConsole();
   vc.on('jsdomError', e => errors.push(e.message));
@@ -45,8 +45,9 @@ async function open(port, { seed = {}, baseVersion = '08', serial = 'WT000000000
           BluetoothLe: {},
           BarcodeScanner: { isGoogleBarcodeScannerModuleAvailable: async () => ({ available: true }), scan: async () => ({ barcodes: [] }) },
           DeviceHttp: {
-            wifiConnected: async () => ({ connected: true }),
+            wifiConnected: async () => ({ connected }),
             listFiles: async () => ({ files: [] }),
+            shareFile: async a => { w.__shared = a; },
             request: async a => {
               if (a.url.endsWith('/identification')) return { status: 200, body: JSON.stringify({ serialNumber: serial }) };
               if (a.url.endsWith('/version')) return { status: 200, body: '{"productVersion":21,"softwareVersion":2}' };
@@ -148,6 +149,51 @@ async function main() {
     const fw = d.getElementById('firmware');
     check('model name with markup is shown as text', !fw.querySelector('img') && !w.__pwned && fw.textContent.includes('<img src=x'), fw.querySelector('img') ? 'img element injected' : 'text missing');
     check('firmware version that is a path is dropped', !fw.textContent.includes('evil'));
+  }
+
+  // 8. export, wipe, import: units, Wi-Fi logins and sensor names survive a reinstall
+  {
+    const units = { current: 'ua1b2', list: [
+      { key: 'ua1b2', name: 'Attic', article: '03-00632', serial: 'WT0000000001', ssid: 'ID-Gateway-WT0000000001', password: 'made-up-pw', added: '2026-01-01T00:00:00Z', data: { ...oldUnit } },
+      { key: 'uc3d4', name: 'Cellar', article: '03-00851', serial: 'WT0000000002', ssid: 'ID-Gateway-WT0000000002', password: 'other-pw', added: '2026-01-02T00:00:00Z', data: {} }] };
+    const lib = { WT0000000001: { '0x0096EB6B': { type: 'CO2 sensor', name: 'Bathroom', model: 'E.VMS-12C39', added: '2026-01-03T00:00:00Z' } } };
+    const A = await open(port, { seed: { units, deviceLib: lib } });
+    A.d.getElementById('adExport').click();
+    await wait(200);
+    const shared = A.w.__shared;
+    check('export hands the share sheet a json file', shared && /^hru-service-data-.*\.json$/.test(shared.name) && JSON.parse(shared.text).app === 'hru-service', JSON.stringify(shared).slice(0, 120));
+
+    const importInto = async (page, content) => {
+      const input = page.d.getElementById('adImport');
+      Object.defineProperty(input, 'files', { value: [{ name: 'x.json', text: async () => content }], configurable: true });
+      page.w.confirm = () => true;
+      input.dispatchEvent(new page.w.Event('change'));
+      await wait(300);
+      return text(page.d.getElementById('adSt'));
+    };
+    const B = await open(port, { connected: false });            // a freshly installed app, away from the unit: nothing saved
+    check('fresh app starts empty', !JSON.parse(B.w.localStorage.getItem('units') || '{"list":[]}').list.length);
+    const msg = await importInto(B, shared.text);
+    const got = JSON.parse(B.w.localStorage.getItem('units'));
+    const gotLib = JSON.parse(B.w.localStorage.getItem('deviceLib'));
+    check('import restores both units and the selected one', got.list.length === 2 && got.list.find(u => u.key === got.current).serial === 'WT0000000001', msg);
+    check('import restores the Wi-Fi login', got.list.find(u => u.serial === 'WT0000000002').password === 'other-pw');
+    check('import restores sensor names', gotLib.WT0000000001 && gotLib.WT0000000001['0x0096EB6B'].name === 'Bathroom');
+    check('imported unit shows on the start screen', /Cellar/.test(text(B.d.getElementById('unitsCard'))));
+
+    const wrong = await importInto(await open(port, { connected: false }), JSON.stringify({ app: 'something-else', format: 1 }));
+    check('a file from another app is refused', /not an app data file/.test(wrong), wrong);
+    const junk = await importInto(await open(port, { connected: false }), 'not json at all');
+    check('a file that is not json is refused', /Import failed/.test(junk), junk);
+
+    const hostile = JSON.stringify({ app: 'hru-service', format: 1, units: { current: 'x', list: [{ key: '<b>', name: '<img src=x onerror=window.__pwned=1>', serial: 'WT0000000003', password: 5, data: { id: { serialNumber: '<i>' } } }] },
+      deviceLib: { WT0000000003: { '<img src=x>': { name: 'bad' }, '0x00112233': { type: 'Not a type', name: '<u>x</u>' } } } });
+    const H = await open(port, { connected: false });
+    await importInto(H, hostile);
+    const hu = JSON.parse(H.w.localStorage.getItem('units')).list[0];
+    const hl = JSON.parse(H.w.localStorage.getItem('deviceLib')).WT0000000003;
+    check('imported values are cleaned: bad key replaced, non-strings dropped, bad type blanked', /^u[a-z0-9]+$/.test(hu.key) && hu.password === '' && Object.keys(hl).join() === '0x00112233' && hl['0x00112233'].type === '', JSON.stringify(hu).slice(0, 140));
+    check('imported text is shown as text, not markup', !H.d.querySelector('#unitsCard img') && !H.w.__pwned && /<img src=x/.test(text(H.d.getElementById('unitsCard'))));
   }
 
   server.close();

@@ -104,6 +104,12 @@
     <div class="bar" style="margin-top:8px"><input id="gateUrl" style="flex:1;min-width:0" placeholder="firmware.json URL"></div>
     <div class="bar"><button id="gateDl">Check GitHub for firmware</button></div>
   </div>
+  <div class="card">
+    <strong>App data</strong>
+    <div class="hint">Saves your units, their Wi-Fi logins and your sensor names to a file, so you can reinstall the app and import them again. The file contains the Wi-Fi passwords, so keep it private.</div>
+    <div class="bar" style="margin-top:8px"><button id="adExport">Export app data</button><button id="adImportBtn">Import from file</button><input type="file" id="adImport" accept=".json,application/json" hidden></div>
+    <div id="adSt" class="hint"></div>
+  </div>
 </div>
 <div id="app" hidden>
   <header class="appbar"><button id="menuBtn" aria-label="Menu">&#9776;</button><div id="pageTitle">My unit</div><button id="homeBtn" aria-label="Start screen">&#8962;</button></header>
@@ -865,6 +871,69 @@ $('hid').onchange = $('ver').onchange;
 const openMenu = o => { $('drawer').classList.toggle('open', o); $('scrim').hidden = !o; };
 $('menuBtn').onclick = () => openMenu(true);
 $('scrim').onclick = () => openMenu(false);
+// ---- app data export / import: units, Wi-Fi logins and sensor names, so the app can be reinstalled without losing them ----
+const APP_DATA_FORMAT = 1;
+const str = (v, n) => (typeof v === 'string' ? v : '').slice(0, n);
+const plain = o => Object.fromEntries(Object.entries(o && typeof o === 'object' && !Array.isArray(o) ? o : {})
+  .filter(([, v]) => ['string', 'number', 'boolean'].includes(typeof v)).slice(0, 30).map(([k, v]) => [str(k, 40), typeof v === 'string' ? v.slice(0, 200) : v]));
+const exportAppData = () => JSON.stringify({ app: 'hru-service', format: APP_DATA_FORMAT, exported: new Date().toISOString(), units: UNITS, deviceLib: libAll() }, null, 1);
+
+// The file is untrusted input: keep only the known fields, as plain strings of limited length.
+function cleanAppData(j) {
+  if (!j || j.app !== 'hru-service' || j.format !== APP_DATA_FORMAT) throw new Error('This is not an app data file from this app.');
+  const list = (j.units && Array.isArray(j.units.list) ? j.units.list : []).filter(u => u && typeof u === 'object').slice(0, 50).map(u => ({
+    key: /^u[a-z0-9]{3,24}$/.test(u.key) ? u.key : newUnit({}).key,
+    name: str(u.name, 40), article: str(u.article, 12), serial: str(u.serial, 24), ssid: str(u.ssid, 40), password: str(u.password, 80), added: str(u.added, 40),
+    data: { id: plain(u.data && u.data.id), ver: plain(u.data && u.data.ver), base: str(u.data && u.data.base, 12), baseRaw: str(u.data && u.data.baseRaw, 200), at: str(u.data && u.data.at, 40) },
+  }));
+  list.forEach(u => { if (!u.data.base) delete u.data.base; if (!u.data.baseRaw) delete u.data.baseRaw; if (!u.data.at) delete u.data.at; if (!Object.keys(u.data.id).length) delete u.data.id; if (!Object.keys(u.data.ver).length) delete u.data.ver; });
+  const lib = {};
+  for (const [k, m] of Object.entries(j.deviceLib && typeof j.deviceLib === 'object' ? j.deviceLib : {})) {
+    const out = {};
+    for (const [a, v] of Object.entries(m && typeof m === 'object' ? m : {})) {
+      if (/^0x[0-9A-F]{8}$/.test(a) && v && typeof v === 'object') out[a] = { type: DEV_TYPES.includes(v.type) ? v.type : '', name: str(v.name, 40), model: str(v.model, 40), added: str(v.added, 40) };
+    }
+    lib[str(k, 24) || '_'] = out;
+  }
+  return { list, current: str(j.units && j.units.current, 30), lib };
+}
+// Units with the same serial are overwritten by the file; everything else already on the phone is kept.
+function applyAppData(c) {
+  const keyMap = {};
+  for (const u of c.list) {
+    const orig = u.key;
+    let e = (u.serial && UNITS.list.find(x => x.serial === u.serial)) || null;
+    if (e) { Object.assign(e, { name: u.name || e.name, article: u.article || e.article, ssid: u.ssid || e.ssid, password: u.password || e.password, data: Object.keys(u.data).length ? u.data : e.data }); }
+    else { if (UNITS.list.some(x => x.key === u.key)) u.key = newUnit({}).key; e = u; UNITS.list.push(e); }
+    keyMap[orig] = e.key;
+  }
+  const all = libAll();
+  for (const [k, m] of Object.entries(c.lib)) all[k] = { ...(all[k] || {}), ...m };
+  try { localStorage.setItem('deviceLib', JSON.stringify(all)); } catch {}
+  selectUnit(keyMap[c.current] || UNITS.current || (UNITS.list[0] && UNITS.list[0].key) || null);
+}
+$('adExport').onclick = async () => {
+  const text = exportAppData(), name = `hru-service-data-${new Date().toISOString().slice(0, 10)}.json`;
+  try {
+    if (Native) await Native.shareFile({ name, text });       // WebViews can't download blobs; use the share sheet
+    else { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; a.click(); }
+    $('adSt').textContent = `Exported ${UNITS.list.length} unit(s) and ${Object.values(libAll()).reduce((n, m) => n + Object.keys(m).length, 0)} sensor name(s). Keep the file private.`;
+  } catch (e) { $('adSt').textContent = 'Export failed: ' + (e.message || e); }
+};
+$('adImportBtn').onclick = () => $('adImport').click();
+$('adImport').onchange = async ev => {
+  const f = ev.target.files[0]; ev.target.value = '';
+  if (!f) return;
+  try {
+    const c = cleanAppData(JSON.parse(await f.text()));
+    const sensors = Object.values(c.lib).reduce((n, m) => n + Object.keys(m).length, 0);
+    if (!c.list.length && !sensors) { $('adSt').textContent = 'That file has no units or sensors in it.'; return; }
+    if (!confirm(`Import ${c.list.length} unit(s) and ${sensors} sensor name(s)? Units with the same serial number are overwritten by the file.`)) return;
+    applyAppData(c);
+    $('adSt').textContent = `Imported ${c.list.length} unit(s) and ${sensors} sensor name(s).`;
+  } catch (e) { $('adSt').textContent = 'Import failed: ' + (e.message || e); }
+};
+
 // Start screen <-> app. The app keeps its page and connection while the start screen is shown.
 const goHome = () => { stopPoll(); $('app').hidden = true; $('gate').hidden = false; $('gateBack').hidden = false; renderUnitsCard(); window.scrollTo(0, 0); };
 $('homeBtn').onclick = goHome;
