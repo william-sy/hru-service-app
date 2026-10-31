@@ -21,6 +21,8 @@ It talks to the unit over the unit's own Wi-Fi, like Itho's service app does, an
   (over mobile data is fine) and installs it with the same flow as Itho's app. Like Itho's app, it only offers
   firmware the catalog lists for the unit's software version (and, if you scanned the unit's sticker, its model).
 - **Backup and restore** of all settings, with the share sheet.
+- **App data export / import** (start screen): saves your units, their Wi-Fi logins and your sensor names to a file and
+  reads it back, so you can reinstall the app without losing them. The file contains the Wi-Fi passwords: keep it private.
 
 There are no release notes for any Itho firmware, so an update is a blind update. Treat it that way.
 
@@ -35,6 +37,9 @@ Other models are untested. If you try it, please open an issue with what happene
 1. Download the latest `hru-service-vX.Y.Z.apk` from the [Releases](../../releases) page on your phone.
 2. Open it. Android asks to allow installs from your browser or file manager. Allow it for this one install.
 3. Optional: check the download against the `.sha256` file on the release.
+
+If the app on your phone was installed from a build signed with a different key (for example a debug build you made
+yourself), Android refuses to update it. Export your app data first, uninstall, install the release, then import.
 
 Android 10 or newer is needed for joining the unit's Wi-Fi from inside the app. Older versions can join in Android settings.
 Sticker scanning uses Google's code scanner and needs Google Play services (it downloads a small module once).
